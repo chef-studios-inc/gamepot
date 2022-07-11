@@ -170,7 +170,7 @@ contract GamePot is AccessControl {
   }
 
   function takeProfits() public {
-    require(hasRole(OWNER_ROLE, msg.sender), "Only an address with the GAME_CONTROLLER role can do this");
+    require(hasRole(OWNER_ROLE, msg.sender), "Only an address with the OWNER role can do this");
     uint profits = address(this).balance - playerBalanceTotal;
     payable(msg.sender).transfer(profits);
   }
