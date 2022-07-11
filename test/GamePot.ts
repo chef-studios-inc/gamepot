@@ -59,7 +59,7 @@ describe("GamePot", function () {
       expect(gs).to.equal(2);
     });
 
-    it("GAMECONTROLLER complete tests", async function() {
+    it("GAMECONTROLLER not enought balance can't play", async function() {
       const { gamePot, users } = await loadFixture(deployGamePot);
       gamePot.setPrice(ethers.utils.parseEther("1"));
       const price = await gamePot.price();
@@ -75,7 +75,7 @@ describe("GamePot", function () {
     });
 
     for (let playerCount = 2; playerCount < 15; playerCount++) {
-      it(`GAMECONTROLLER winner and contract should both be profitable (PLAYERS: ${playerCount})`, async function () {
+      it(`GAMECONTROLLER game e2e (PLAYERS: ${playerCount})`, async function () {
         const { gamePot, users } = await loadFixture(deployGamePot);
         gamePot.setPrice(ethers.utils.parseEther("1"));
         const price = await gamePot.price();
