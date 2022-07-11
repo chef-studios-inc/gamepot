@@ -30,8 +30,6 @@ contract GamePot is AccessControl {
   mapping (address => uint) public playerBalances;
   uint public playerBalanceTotal;
 
-  event Withdrawal(uint amount, uint when);
-
   constructor() {
     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _setupRole(OWNER_ROLE, msg.sender);
