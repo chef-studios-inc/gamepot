@@ -192,15 +192,7 @@ contract GamePot is AccessControl {
   /// @dev this function must be called in order from first place to last place
   function calculateAward(uint leaderboardLength, uint leaderboardIndex, uint prizePool, uint currentPaidOut) private view returns(uint) {
     uint lastAwardedIndexTimes100 = leaderboardLength * percentageOfPlayersAwarded;
-
     uint maxPayout = prizePool * (100 - hostingFeePercentage) / 100;
-
-    // if there's only one winner and that award makes the contract unprofitable
-    // then we reward them as much as we can
-    // if(lastAwardedIndexTimes100 == 0) {
-    //   return prizePool * (100 - hostingFeePercentage) / 100 - currentPaidOut;
-    // }
-
     uint multiplerReductionTimesPriceDividedBy100 = firstPlaceAwardMultiplier * leaderboardIndex * price / lastAwardedIndexTimes100;
 
     uint award;
