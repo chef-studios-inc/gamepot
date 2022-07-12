@@ -41,24 +41,6 @@ describe("GamePot", function () {
       await expect(userGamePot.startGame([users[0].address, users[1].address])).to.be.rejected;
     });
 
-    it("GAMECONTROLLER should be able to start game", async function() {
-      const { gamePot, gameController, users } = await loadFixture(deployGamePot);
-      const userGamePot = await gamePot.connect(gameController)
-
-      let gs = await userGamePot.gameState();
-      expect(gs).to.equal(0);
-
-      await expect(userGamePot.startGame([users[0].address, users[1].address])).to.not.be.rejected;
-
-      gs = await userGamePot.gameState();
-      expect(gs).to.equal(1);
-
-      await userGamePot.endGame([]);
-
-      gs = await userGamePot.gameState();
-      expect(gs).to.equal(2);
-    });
-
     it("GAMECONTROLLER not enought balance can't play", async function() {
       const { gamePot, users } = await loadFixture(deployGamePot);
       gamePot.setPrice(ethers.utils.parseEther("1"));
