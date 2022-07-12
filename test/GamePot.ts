@@ -117,6 +117,13 @@ describe("GamePot", function () {
           expect(p1.gte(p2), "better performers should have a bigger reward").to.be.true;
         }
 
+        // winner cash out
+        const beforeBalance = await users[0].getBalance();
+        await userGPs[0].cashOut();
+        const afterBalance = await users[0].getBalance();
+        expect(afterBalance.sub(beforeBalance).gt(price), "winner should be profitable after cashing out");
+
+
         for(let i = 0; i < (playerCount); i++) {
           const balance = await gamePot.playerBalances(users[i].address);
           if(balance.gt(BigNumber.from(0))) {

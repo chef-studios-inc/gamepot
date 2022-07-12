@@ -59,7 +59,7 @@ contract GamePot is AccessControl {
   /// @return - a tuple(bytes32[] wallets in game, bytes32[] wallets that didn't make it into game)
   /// @dev requires GAME_CONTROLLER role
   function startGame(address[] calldata players) public returns(address[] memory, address[] memory) {
-      require(hasRole(OWNER_ROLE, msg.sender), "Only an address with the GAME_CONTROLLER role can do this");
+      require(hasRole(GAME_CONTROLLER_ROLE, msg.sender), "Only an address with the GAME_CONTROLLER role can do this");
       require(gameState == GameState.PREGAME, "Can only start a game from the PREGAME state");
 
       uint inGameCount = 0;
@@ -102,18 +102,13 @@ contract GamePot is AccessControl {
   function endGame(address[] calldata leaderboard) public {
       require(hasRole(GAME_CONTROLLER_ROLE, msg.sender), "Only an address with the GAME_CONTROLLER role can do this");
       require(gameState == GameState.PLAYING, "Can only start a game from the PLAYING state");
+      require(leaderboard.length > 0, "Must have some players in the leaderboard");
 
       uint prizePool = 0;
 
       // Figure out the prize pool
       for(uint i = 0; i < playersInGame.length; i++) {
         prizePool += price;
-      }
-
-      if(leaderboard.length == 0) {
-        clearPlayingPlayers();
-        gameState = GameState.COMPLETE;
-        return;
       }
 
       uint paidOut = 0;
