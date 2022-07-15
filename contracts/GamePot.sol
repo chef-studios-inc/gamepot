@@ -128,7 +128,23 @@ contract GamePot is AccessControl {
       }
 
       clearPlayingPlayers();
+
       gameState = GameState.COMPLETE;
+      return;
+  }
+
+  function cancelGame() public {
+      require(hasRole(GAME_CONTROLLER_ROLE, msg.sender), "Only an address with the GAME_CONTROLLER role can do this");
+      require(gameState == GameState.PLAYING, "Can only start a game from the PLAYING state");
+
+      // refund user
+      for(uint i = 0; i < playersInGame.length; i++) {
+        playerBalances[playersInGame[i]] += price;
+        playerBalanceTotal += price;
+        clearPlayingPlayers();
+      }
+
+      gameState = GameState.PREGAME;
       return;
   }
 
