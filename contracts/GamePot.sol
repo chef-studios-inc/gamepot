@@ -135,7 +135,6 @@ contract GamePot is AccessControl {
 
   function cancelGame() public {
       require(hasRole(GAME_CONTROLLER_ROLE, msg.sender), "Only an address with the GAME_CONTROLLER role can do this");
-      require(gameState == GameState.PLAYING, "Can only start a game from the PLAYING state");
 
       // refund user
       for(uint i = 0; i < playersInGame.length; i++) {
