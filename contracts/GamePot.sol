@@ -141,8 +141,8 @@ contract GamePot is AccessControl {
       for(uint i = 0; i < playersInGame.length; i++) {
         playerBalances[playersInGame[i]] += price;
         playerBalanceTotal += price;
-        clearPlayingPlayers();
       }
+      clearPlayingPlayers();
 
       gameState = GameState.PREGAME;
       return;

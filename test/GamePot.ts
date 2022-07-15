@@ -56,6 +56,43 @@ describe("GamePot", function () {
       expect(BigNumber.from(2).eq(playersInGameCount), "One user doesn't have enought balance").to.be.true;
     });
 
+    it(`Cancel should refund`, async function () {
+      const { gamePot, users } = await loadFixture(deployGamePot);
+      gamePot.setPrice(ethers.utils.parseEther("1"));
+      const price = await gamePot.price();
+      const userGPs: GamePot[] = [];
+
+      const startBalance = await gamePot.provider.getBalance(gamePot.address);
+
+      for (let i = 0; i < 5; i++) {
+        const gp = await gamePot.connect(users[i]);
+        await gp.buyIn({ value: price });
+        userGPs.push(gp);
+      }
+
+      const afterPaymentBalance = await gamePot.provider.getBalance(gamePot.address);
+
+      expect(
+        afterPaymentBalance.sub(startBalance).eq(price.mul(5)),
+        "Contract should have been paid"
+      ).to.be.true;
+
+      const addresses = users.slice(0, 5).map(u => u.address);
+      await gamePot.startGame(addresses);
+      const playersInGameCount = await gamePot.playersInGameCount();
+
+      expect(
+        BigNumber.from(5).eq(playersInGameCount),
+        "Players all made it into the game"
+      ).to.be.true;
+
+      const beforeRefund = await gamePot.playerBalances(users[0].address);
+      await gamePot.cancelGame()
+      const afterRefund = await gamePot.playerBalances(users[0].address);
+      expect(afterRefund.sub(beforeRefund).eq(price), "refund should be the price").to.be.true;
+    });
+
+
     for (let playerCount = 2; playerCount < 15; playerCount++) {
       it(`GAMECONTROLLER game e2e (PLAYERS: ${playerCount})`, async function () {
         const { gamePot, users } = await loadFixture(deployGamePot);
