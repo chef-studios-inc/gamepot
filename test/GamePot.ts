@@ -93,7 +93,7 @@ describe("GamePot", function () {
     });
 
 
-    for (let playerCount = 2; playerCount < 15; playerCount++) {
+    for (let playerCount = 2; playerCount < 8; playerCount++) {
       it(`GAMECONTROLLER game e2e (PLAYERS: ${playerCount})`, async function () {
         const { gamePot, users } = await loadFixture(deployGamePot);
         gamePot.setPrice(ethers.utils.parseEther("1"));

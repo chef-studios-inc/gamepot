@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const GamePot = await ethers.getContractFactory("GamePot");
+  const GamePot = await ethers.getContractFactory("GamePot_ERC20");
   const gamePot = await GamePot.deploy();
 
   await gamePot.deployed();
