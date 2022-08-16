@@ -51,6 +51,11 @@ describe("GameState", function () {
       await expectNoThrow(gameState.completeGame(123), "game should complete");
       await expectThrow(gameState.completeGame(1234), "non existent game should throw");
 
+      // leaderboard validation
+      expect(await gameState.validateLeaderboard(123, [users[2].address, users[1].address, users[0].address]), "valid leaderboard is valid").to.be.true;
+      expect(await gameState.validateLeaderboard(123, [users[1].address, users[2].address]), "incomplete leaderboard is invalid").to.be.false;
+      expect(await gameState.validateLeaderboard(123, [users[4].address, users[1].address, users[2].address]), "leaderboard with unknown user is invalid").to.be.false;
+
       // should be in complete state
       expect(await gameState.getGameState(123)).to.eql(2);
 
@@ -94,6 +99,24 @@ describe("GameState", function () {
 
       // should be in pregame state
       expect(await gameState.getGameState(123)).to.eql(0);
+    });
+  });
+
+  describe("Cancel a game", async function () {
+    it("Should be able to cancel games", async function () {
+      const { gameState, users } = await loadFixture(deployGameState);
+      await gameState.createGame(123);
+      await gameState.startGame(123, [users[0].address, users[1].address]);
+      expect(await gameState.checkIfPlayerInGame(123, users[0].address)).to.be.true;
+      await gameState.cancelGame(123);
+      expect(await gameState.checkIfPlayerInGame(123, users[0].address)).to.be.false;
+      expect(await gameState.getGameState(123)).to.eql(0);
+    });
+
+    it("Should not be able to cancel a non-started game", async function () {
+      const { gameState, users } = await loadFixture(deployGameState);
+      await gameState.createGame(123);
+      await expectThrow(gameState.cancelGame(123), "cancelling a non-started game should throw");
     });
   });
 

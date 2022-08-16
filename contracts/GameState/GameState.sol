@@ -71,17 +71,27 @@ contract GameState {
       return GameState.PLAYING;
     }
 
-    if(completeGames[game_id]) {
-      return GameState.COMPLETE;
-    }
-
-    require(false, "game_id is in a bad state, there is a bug in this contract");
-    return GameState.PREGAME;
+    return GameState.COMPLETE;
   }
 
   function checkIfPlayerInGame(uint game_id, uint addr) public view returns (bool) {
     require(existingGames[game_id] == true, "game_id doesn't exist");
     return gamePlayerCheck[getLookupKey(game_id, addr)];
+  }
+
+  function validateLeaderboard(uint game_id, uint[] calldata leaderboard) public view returns (bool) {
+    require(existingGames[game_id] == true, "game_id doesn't exist");
+
+    if(gamePlayersList[game_id].length != leaderboard.length) {
+      return false;
+    }
+
+    for(uint i = 0; i < leaderboard.length; i++) {
+      if(!gamePlayerCheck[getLookupKey(game_id, leaderboard[i])]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   function clearGamePlayers(uint game_id) private {
