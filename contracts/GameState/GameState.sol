@@ -4,21 +4,29 @@ pragma solidity ^0.8.9;
 contract GameState {
   enum GameState { PREGAME, PLAYING, COMPLETE }
 
+  address private contractCreator;
+
   mapping (uint => bool) public pregameGames;
   mapping (uint => bool) public playingGames;
   mapping (uint => bool) public completeGames;
   mapping (uint => bool) public existingGames;
-  mapping (uint => uint[]) public gamePlayersList;
+  mapping (uint => address[]) public gamePlayersList;
   mapping (uint256 => bool) public gamePlayerCheck;
 
+  constructor() {
+    contractCreator = msg.sender;
+  }
+
   function createGame(uint game_id) public {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == false, "game_id already exists, please choose another");
 
     existingGames[game_id] = true;
     pregameGames[game_id] = true;
   } 
 
-  function startGame(uint game_id, uint[] calldata players) public {
+  function startGame(uint game_id, address[] calldata players) public {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == true, "game_id doesn't exist");
     require(pregameGames[game_id] == true, "Can only start from PREGAME state");
 
@@ -35,6 +43,7 @@ contract GameState {
   }
 
   function completeGame(uint game_id) public {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == true, "game_id doesn't exist");
     require(playingGames[game_id] == true, "Can only complete from PLAYING state");
 
@@ -43,6 +52,7 @@ contract GameState {
   }
 
   function resetGame(uint game_id) public {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == true, "game_id doesn't exist");
     require(completeGames[game_id] == true, "Can only reset from COMPLETE state");
 
@@ -52,15 +62,18 @@ contract GameState {
   }
 
   function cancelGame(uint game_id) public {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == true, "game_id doesn't exist");
     require(pregameGames[game_id] == false, "Can't cancel a PREGAME game");
 
     playingGames[game_id] = false;
     completeGames[game_id] = false;
     pregameGames[game_id] = true;
+    clearGamePlayers(game_id);
   }
 
   function getGameState(uint game_id) public view returns (GameState) {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == true, "game_id doesn't exist");
 
     if(pregameGames[game_id]) {
@@ -74,12 +87,14 @@ contract GameState {
     return GameState.COMPLETE;
   }
 
-  function checkIfPlayerInGame(uint game_id, uint addr) public view returns (bool) {
+  function checkIfPlayerInGame(uint game_id, address addr) public view returns (bool) {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == true, "game_id doesn't exist");
     return gamePlayerCheck[getLookupKey(game_id, addr)];
   }
 
-  function validateLeaderboard(uint game_id, uint[] calldata leaderboard) public view returns (bool) {
+  function validateLeaderboard(uint game_id, address[] calldata leaderboard) public view returns (bool) {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == true, "game_id doesn't exist");
 
     if(gamePlayersList[game_id].length != leaderboard.length) {
@@ -95,7 +110,7 @@ contract GameState {
   }
 
   function clearGamePlayers(uint game_id) private {
-    uint[] memory players = gamePlayersList[game_id];
+    address[] memory players = gamePlayersList[game_id];
 
     for(uint i = 0; i < players.length; i++) {
       gamePlayerCheck[getLookupKey(game_id, players[i])] = false;
@@ -104,7 +119,7 @@ contract GameState {
     delete gamePlayersList[game_id];
   }
 
-  function getLookupKey(uint game_id, uint addr) private pure returns (uint256) {
+  function getLookupKey(uint game_id, address addr) private pure returns (uint256) {
     return uint256(keccak256(abi.encode(game_id, addr)));
   }
 }

@@ -7,7 +7,7 @@ export const expectThrow = async (p: Promise<any>, message: string) => {
   } catch {
     threw = true;
   }
-  expect(threw, message);
+  expect(threw, message).to.be.true;
 }
 
 export const expectNoThrow = async (p: Promise<any>, message: string) => {
@@ -17,5 +17,5 @@ export const expectNoThrow = async (p: Promise<any>, message: string) => {
   } catch {
     threw = true;
   }
-  expect(!threw, message);
+  expect(threw, message).to.be.false;
 }
