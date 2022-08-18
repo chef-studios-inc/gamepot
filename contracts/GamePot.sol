@@ -16,6 +16,7 @@ contract GamePot {
   PrizePool private prizePool;
   GameState private gameState;
   address creator;
+  mapping (uint => address) gameOwners;
 
   constructor() {
     creator = msg.sender;
@@ -23,6 +24,21 @@ contract GamePot {
     gameState = new GameState();
   }
 
+  // Player Methods
+  function joinGame(uint game_id) public {
+    require(gameState.getGameState(game_id) == GameState.GameState.PREGAME, "game must be in PREGAME state to join");
+    prizePool.joinPrizePool(game_id, msg.sender);
+  }
+
+  function getMyCreditBalance(uint game_id) public view returns (uint) {
+    return prizePool.getCreditBalance(game_id, msg.sender);
+  }
+
+  function getCreditBalanceOf(uint game_id, address addr) public view returns (uint) {
+    return prizePool.getCreditBalance(game_id, addr);
+  }
+
+  // Moderation Methods 
   function createGame(uint game_id, ERC20 currency, uint price, uint percentageOfPlayersPaidOut, uint royaltyPercentOfTotalPrizePool) public {
     PrizePoolRoyaltySplit memory creatorSplit = PrizePoolRoyaltySplit(msg.sender, 50);
     PrizePoolRoyaltySplit memory contractSplit = PrizePoolRoyaltySplit(creator, 50);
@@ -35,22 +51,28 @@ contract GamePot {
 
     gameState.createGame(game_id);
     prizePool.createPool(game_id, currency, settings);
-  }
-
-  function joinGame(uint game_id) public {
-    require(gameState.getGameState(game_id) == GameState.GameState.PREGAME, "game must be in PREGAME state to join");
-    prizePool.joinPrizePool(game_id, msg.sender);
+    gameOwners[game_id] = msg.sender;
   }
 
   function startGame(uint game_id, address[] calldata players) public {
+    require(gameOwners[game_id] == msg.sender, "must be game owner to call this action");
     gameState.startGame(game_id, players);
+    prizePool.commitAddressesToPool(pool_id, players);
   }
 
-  function getMyCreditBalance(uint game_id) public view returns (uint) {
-    return prizePool.getCreditBalance(game_id, msg.sender);
+  function cancelGame(uint game_id) public {
+    require(gameOwners[game_id] == msg.sender, "must be game owner to call this action");
   }
 
-  function getCreditBalanceOf(uint game_id, address addr) public view returns (uint) {
-    return prizePool.getCreditBalance(game_id, addr);
+  function completeGame(uint game_id, address[] leaderboard) public {
+    require(gameOwners[game_id] == msg.sender, "must be game owner to call this action");
+    gameState.completeGame(game_id, leaderboard);
+    prizePool.awardLeaderboard(game_id, leaderboard);
+  }
+
+  function cancelGame(uint game_id) public {
+    require(gameOwners[game_id] == msg.sender, "must be game owner to call this action");
+    gameState.cancelGame(game_id);
+    prizePool.refundPool(game_id, leaderboard);
   }
 }
