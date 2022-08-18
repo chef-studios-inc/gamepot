@@ -7,8 +7,10 @@ import "./PrizePoolSettings.sol";
 import "hardhat/console.sol";
 
 contract PrizePool {
+  enum PrizePoolState { ACCEPTING_NEW_JOINS, CLOSED }
   address private contractCreator;
 
+  mapping (uint => PrizePoolState) poolStates;
   mapping (uint => bool) public existingPools;
   mapping (uint => ERC20) public poolCurrency;
   mapping (uint => PrizePoolSettings) public poolSettings;
@@ -28,6 +30,7 @@ contract PrizePool {
     existingPools[pool_id] = true;
     poolCurrency[pool_id] = currency;
     poolSettings[pool_id] = settings;
+    poolStates[pool_id] = PrizePoolState.ACCEPTING_NEW_JOINS;
   } 
 
   function addCredits(uint pool_id, uint amount, address caller) public {
@@ -46,9 +49,9 @@ contract PrizePool {
   function joinPrizePool(uint pool_id, address caller) public {
     require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingPools[pool_id] == true, "pool_id doesn't exist");
+    require(poolStates[pool_id] == PrizePoolState.ACCEPTING_NEW_JOINS, "can't join the pool in this state");
 
     uint256 key = getBalanceKey(pool_id, caller);
-
     uint amount = poolSettings[pool_id].joinPoolPrice;
 
     require(creditBalances[key] >= amount, "this player doesn't have enough credits to join the prize pool at this amount");
@@ -60,17 +63,42 @@ contract PrizePool {
     playersWithPoolBalances[pool_id].push(caller);
   }
 
-  /// @notice Equations
-  /// ----------------------------------------
-  /// Goal: Create a function f(x) = y where x is leaderboardIndex and y is price multiplier for award
-  /// lastAwardedIndex = leaderboardLength * percentageOfPlayersAwarded / 100;
-  /// f(x) = firstPlaceAwardMultiplier - b (x)
-  /// f(lastAwardedIndex) = 0 = firstPlaceAwardMultipler - b (lastAwardedIndex)
-  /// b = firstPlaceAwardMultipler / lastAwardedIndex
-  /// therefore f(x) = firstPlaceAwardMultipler - (firstPlaceAwardMultiplier / lastAwardedIndex) * x
-  /// @dev this function must be called in order from first place to last place
+  function commitAddressesToPool(uint pool_id, address[] calldata addresses) public {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
+    require(poolStates[pool_id] == PrizePoolState.ACCEPTING_NEW_JOINS, "can't commit the pool in this state");
+    uint price = poolSettings[pool_id].joinPoolPrice;
+
+    address[] memory addressesInPool = playersWithPoolBalances[pool_id];
+
+    uint totalRefunded;
+    // remove addresses in pool who have not been committed
+    for(uint j = 0; j < addressesInPool.length; j++) {
+      uint256 key = getBalanceKey(pool_id, addressesInPool[j]);
+      require(playerPoolBalanceLookup[key], "committed address not in pool");
+      bool shouldCommitAddress = false;
+      for(uint i = 0; i < addresses.length; i++) {
+        if(addresses[i] == addressesInPool[j]) {
+          shouldCommitAddress = true;
+          break;
+        }
+      }
+      if(shouldCommitAddress) {
+        continue;
+      }
+
+      // refund addresses that aren't committed
+      playerPoolBalanceLookup[key] = false;
+      creditBalances[key] += price;
+      totalRefunded += price;
+    }
+
+    prizePoolTotals[pool_id] -= totalRefunded;
+    poolStates[pool_id] = PrizePoolState.CLOSED;
+  }
+
   function awardLeaderboard(uint pool_id, address[] calldata leaderboard) public {
     require(msg.sender == contractCreator, "this contract can only be called by its creator");
+    require(poolStates[pool_id] == PrizePoolState.CLOSED, "can't award leaderboard in this state");
     PrizePoolSettings memory settings = poolSettings[pool_id];
     require(settings.totalRoyaltyPercent < 100, "royaltyPercent cannot be more than 100");
     requireRoyaltySplitAddTo100(settings.royaltySplits);
@@ -86,34 +114,44 @@ contract PrizePool {
       royaltyPaidOut += payout;
     }
 
-    uint firstPlaceDesiredPayout = settings.firstPlaceMultiplier * settings.joinPoolPrice;
     uint payoutRemaining = totalPrizePool - royaltyPaidOut;
-    uint lastAwardedIndexTimes100 = leaderboard.length * settings.topPercentOfPlayersPaidOut;
+    uint lastAwardedIndexTimes100 = leaderboard.length * settings.topPercentOfPlayersPaidOut + 1;
+    
+    // area of the triangle = the payout still remaining. Looking to find the slope of the triangle
+    // slope = h/w
+    // w = lastAwardedIndex
+    // w * h = 2 * payoutRemaining
+    // h = 2 * payoutRemaining * 100 / lastAwardedIndexTimes100
+    uint yIntercept = 2 * payoutRemaining * 100 / lastAwardedIndexTimes100;
+    uint slope = yIntercept * 100 / (lastAwardedIndexTimes100);
 
     // pay out players
     for(uint i = 0; i < leaderboard.length; i++) {
       uint256 key = getBalanceKey(pool_id, leaderboard[i]);
       require(playerPoolBalanceLookup[key] == true, "player balance must be the same as the buy in price");
+      playerPoolBalanceLookup[key] = false;
+      if(payoutRemaining == 0)  {
+        break;
+      }
       uint payout;
-      uint multiplierReductionTimesPriceDividedBy100 = firstPlaceDesiredPayout * i / lastAwardedIndexTimes100;
-
-      if(payoutRemaining + multiplierReductionTimesPriceDividedBy100 * 100 <= firstPlaceDesiredPayout) {
-        payout = payoutRemaining;
+      uint decreaseBy = i * slope; //-mx
+      if(yIntercept >= decreaseBy) {
+        payout = yIntercept - decreaseBy;
+        if(payout > payoutRemaining) {
+          payout = payoutRemaining;
+        }
       } else {
-        payout = (firstPlaceDesiredPayout - multiplierReductionTimesPriceDividedBy100 * 100);
+        payout = payoutRemaining;
       }
 
-      console.log("NEIL ", payout);
-      console.log("NEIL ", i);
-
       payoutRemaining -= payout;
-      playerPoolBalanceLookup[key] = false;
       creditBalances[key] += payout;
     }
 
     require(payoutRemaining == 0, "All of the prize pool must be paid out");
     prizePoolTotals[pool_id] = 0;
     delete playersWithPoolBalances[pool_id];
+    poolStates[pool_id] = PrizePoolState.ACCEPTING_NEW_JOINS;
   }
 
   function refundPool(uint pool_id) public {
@@ -125,6 +163,9 @@ contract PrizePool {
     uint totalRefunded;
     for(uint i = 0; i < players.length; i++) {
       uint256 key = getBalanceKey(pool_id, players[i]);
+      if(!playerPoolBalanceLookup[key]) {
+        continue;
+      }
       playerPoolBalanceLookup[key] = false;
       creditBalances[key] += refundAmount;
       totalRefunded += refundAmount;
@@ -132,6 +173,7 @@ contract PrizePool {
 
     prizePoolTotals[pool_id] -= totalRefunded;
     delete playersWithPoolBalances[pool_id];
+    poolStates[pool_id] = PrizePoolState.ACCEPTING_NEW_JOINS;
   }
 
   function cashOut(uint pool_id, address player) public {
@@ -140,7 +182,7 @@ contract PrizePool {
     uint256 key = getBalanceKey(pool_id, player);
     uint credits = creditBalances[key];
     creditBalances[key] = 0;
-    if(!currency.transferFrom(address(this), player, credits)) {
+    if(!currency.transfer(player, credits)) {
       creditBalances[key] = credits;
     }
   }

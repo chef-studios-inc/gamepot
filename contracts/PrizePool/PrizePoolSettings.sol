@@ -7,6 +7,5 @@ struct PrizePoolSettings {
   PrizePoolRoyaltySplit[] royaltySplits;
   uint joinPoolPrice;
   uint topPercentOfPlayersPaidOut;
-  uint firstPlaceMultiplier;
   uint totalRoyaltyPercent;
 }
