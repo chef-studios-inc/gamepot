@@ -42,10 +42,11 @@ contract GameState {
     playingGames[game_id] = true;
   }
 
-  function completeGame(uint game_id) public {
+  function completeGame(uint game_id, address[] calldata leaderboard) public {
     require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == true, "game_id doesn't exist");
     require(playingGames[game_id] == true, "Can only complete from PLAYING state");
+    require(validateLeaderboard(game_id, leaderboard), "leaderboard invalid");
 
     playingGames[game_id] = false;
     completeGames[game_id] = true;
@@ -93,7 +94,7 @@ contract GameState {
     return gamePlayerCheck[getLookupKey(game_id, addr)];
   }
 
-  function validateLeaderboard(uint game_id, address[] calldata leaderboard) public view returns (bool) {
+  function validateLeaderboard(uint game_id, address[] calldata leaderboard) private view returns (bool) {
     require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == true, "game_id doesn't exist");
 

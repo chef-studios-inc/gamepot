@@ -13,8 +13,8 @@ import "./PrizePool/PrizePool.sol";
 ///         paid out to the top users with some percentage going to
 ///         the contract's owner
 contract GamePot {
-  PrizePool private prizePool;
-  GameState private gameState;
+  PrizePool public prizePool;
+  GameState public gameState;
   address creator;
   mapping (uint => address) gameOwners;
 
@@ -28,6 +28,14 @@ contract GamePot {
   function joinGame(uint game_id) public {
     require(gameState.getGameState(game_id) == GameState.GameState.PREGAME, "game must be in PREGAME state to join");
     prizePool.joinPrizePool(game_id, msg.sender);
+  }
+
+  function cashOut(uint game_id) public {
+    prizePool.cashOut(game_id, msg.sender);
+  }
+
+  function addCredits(uint game_id, uint amount) public {
+    prizePool.addCredits(game_id, amount, msg.sender); 
   }
 
   function getMyCreditBalance(uint game_id) public view returns (uint) {
@@ -57,22 +65,23 @@ contract GamePot {
   function startGame(uint game_id, address[] calldata players) public {
     require(gameOwners[game_id] == msg.sender, "must be game owner to call this action");
     gameState.startGame(game_id, players);
-    prizePool.commitAddressesToPool(pool_id, players);
+    prizePool.commitAddressesToPool(game_id, players);
   }
 
-  function cancelGame(uint game_id) public {
-    require(gameOwners[game_id] == msg.sender, "must be game owner to call this action");
-  }
-
-  function completeGame(uint game_id, address[] leaderboard) public {
+  function completeGame(uint game_id, address[] calldata leaderboard) public {
     require(gameOwners[game_id] == msg.sender, "must be game owner to call this action");
     gameState.completeGame(game_id, leaderboard);
     prizePool.awardLeaderboard(game_id, leaderboard);
   }
 
+  function resetGame(uint game_id) public {
+    require(gameOwners[game_id] == msg.sender, "must be game owner to call this action");
+    gameState.resetGame(game_id);
+  }
+
   function cancelGame(uint game_id) public {
     require(gameOwners[game_id] == msg.sender, "must be game owner to call this action");
     gameState.cancelGame(game_id);
-    prizePool.refundPool(game_id, leaderboard);
+    prizePool.refundPool(game_id);
   }
 }

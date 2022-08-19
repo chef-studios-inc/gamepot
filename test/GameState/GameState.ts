@@ -48,13 +48,10 @@ describe("GameState", function () {
       expect(await gameState.getGameState(123)).to.eql(1);
 
       // stop the game
-      await expectNoThrow(gameState.completeGame(123), "game should complete");
-      await expectThrow(gameState.completeGame(1234), "non existent game should throw");
-
-      // leaderboard validation
-      expect(await gameState.validateLeaderboard(123, [users[2].address, users[1].address, users[0].address]), "valid leaderboard is valid").to.be.true;
-      expect(await gameState.validateLeaderboard(123, [users[1].address, users[2].address]), "incomplete leaderboard is invalid").to.be.false;
-      expect(await gameState.validateLeaderboard(123, [users[4].address, users[1].address, users[2].address]), "leaderboard with unknown user is invalid").to.be.false;
+      await expectThrow(gameState.completeGame(123, [users[1].address, users[2].address]), "incomplete leaderboard is invalid");
+      await expectThrow(gameState.completeGame(123, [users[4].address, users[1].address, users[2].address]), "leaderboard with unknown user is invalid");
+      await expectNoThrow(gameState.completeGame(123, [users[2].address, users[1].address, users[0].address]), "valid leaderboard is valid");
+      await expectThrow(gameState.completeGame(1234, []), "non existent game should throw");
 
       // should be in complete state
       expect(await gameState.getGameState(123)).to.eql(2);
@@ -87,8 +84,8 @@ describe("GameState", function () {
       expect(await gameState.getGameState(123)).to.eql(1);
 
       // stop the game
-      await expectNoThrow(gameState.completeGame(123), "game should complete");
-      await expectThrow(gameState.completeGame(1234), "non existent game should throw");
+      await expectNoThrow(gameState.completeGame(123, addresses), "game should complete");
+      await expectThrow(gameState.completeGame(1234, []), "non existent game should throw");
 
       // should be in complete state
       expect(await gameState.getGameState(123)).to.eql(2);

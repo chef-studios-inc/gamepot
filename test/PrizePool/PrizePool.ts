@@ -3,7 +3,7 @@ import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect, util } from "chai";
 import { ethers } from "hardhat";
 import { BigNumber, utils } from "ethers";
-import { GameState, GameState__factory } from "../../typechain-types";
+import { PrizePool__factory } from "../../typechain-types";
 import exp from "constants";
 import {expectThrow, expectNoThrow} from "../utils/utils";
 import { prizePool } from "../../typechain-types/contracts";
@@ -13,7 +13,7 @@ describe("PrizePool", function () {
   async function deployPrizePool() {
     // Contracts are deployed using the first signer/account by default
     const [deployer, royaltyRecipient10, royaltyRecipient90, ...users] = await ethers.getSigners();
-    const PrizePool = await ethers.getContractFactory("PrizePool");
+    const PrizePool: PrizePool__factory = await ethers.getContractFactory("PrizePool");
     const prizePool = await PrizePool.deploy();
     const ERC20 = await ethers.getContractFactory("TestERC20");
     const currency1 = await ERC20.deploy();
