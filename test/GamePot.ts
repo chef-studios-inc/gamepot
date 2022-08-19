@@ -22,7 +22,7 @@ describe("GamePot", function () {
   }
 
   it("e2e", async function () {
-    const { gamePot, currency1, currency2, users } = await loadFixture(deployPrizePool);
+    const { gamePot, currency1, currency2, users, deployer } = await loadFixture(deployPrizePool);
     const players = users.slice(3, 8);
 
     const gp0 = await gamePot.connect(users[0]);
@@ -51,22 +51,26 @@ describe("GamePot", function () {
     // royalties got paid out
     const royalty1gp = await gamePot;
     const royalty2gp = await gp0;
-    const before1 = await royalty1gp.getMyCreditBalance(1);
-    const before2 = await royalty2gp.getMyCreditBalance(1);
+    const royaltyCur1 = await currency1.connect(deployer);
+    const royaltyCur2 = await currency1.connect(users[0]);
+    const before1 = await royaltyCur1.balanceOf(deployer.address);
+    const before2 = await royaltyCur2.balanceOf(users[0].address);
     await royalty1gp.cashOut(1);
     await royalty2gp.cashOut(1);
-    const after1 = await royalty1gp.getMyCreditBalance(1);
-    const after2 = await royalty2gp.getMyCreditBalance(1);
+    const after1 = await royaltyCur1.balanceOf(deployer.address);
+    const after2 = await royaltyCur2.balanceOf(users[0].address);
 
     expect(after1.gt(before1), "royalties got paid out").to.be.true;
-    expect(after2.gt(before1), "royalties got paid out").to.be.true;
-
-
-
+    expect(after2.gt(before2), "royalties got paid out").to.be.true;
 
     // winner won something
     const winnergp = await gamePot.connect(players[0]);
     const winnerCredits = await winnergp.getMyCreditBalance(1);
     expect(winnerCredits.gt(utils.parseEther("5")), "winner should have made money").to.be.true;
+    const winnerCur = await currency1.connect(players[0]);
+    const winnerBefore = await winnerCur.balanceOf(players[0].address);
+    await winnergp.cashOut(1);
+    const winnerAfter = await winnerCur.balanceOf(players[0].address);
+    expect(winnerAfter.gt(winnerBefore), "winner got paid out").to.be.true;
   });
 });
