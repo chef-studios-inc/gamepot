@@ -192,6 +192,10 @@ contract PrizePool {
     return creditBalances[key];
   }
 
+  function getBuyInPrice(uint pool_id) public view returns(uint) {
+    return poolSettings[pool_id].joinPoolPrice;
+  }
+
   function getBalanceKey(uint pool_id, address addr) private pure returns (uint256) {
     return uint256(keccak256(abi.encode(pool_id, addr)));
   }

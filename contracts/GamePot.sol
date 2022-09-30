@@ -40,12 +40,18 @@ contract GamePot {
     prizePool.addCredits(game_id, amount, msg.sender); 
   }
 
-  function getMyCreditBalance(uint game_id) public view returns (uint) {
-    return prizePool.getCreditBalance(game_id, msg.sender);
-  }
-
   function getCreditBalanceOf(uint game_id, address addr) public view returns (uint) {
     return prizePool.getCreditBalance(game_id, addr);
+  }
+
+  // Prize Pool Methods
+
+  function getPrizePoolBalance(uint game_id) public view returns (uint) {
+    return prizePool.prizePoolTotals(game_id);
+  }
+
+  function getBuyInPrice(uint game_id) public view returns (uint) {
+    return prizePool.getBuyInPrice(game_id);
   }
 
   // Moderation Management Methods
@@ -62,7 +68,7 @@ contract GamePot {
     gameModeration.setOwner(game_id, mod, msg.sender);
   }
 
-  function isModOrOwner(uint game_id, address addr) public returns (bool) {
+  function isModOrOwner(uint game_id, address addr) public view returns (bool) {
     return gameModeration.isModOrOwner(game_id, addr);
   }
 
