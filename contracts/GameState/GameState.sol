@@ -65,7 +65,6 @@ contract GameState {
   function cancelGame(uint game_id) public {
     require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == true, "game_id doesn't exist");
-    require(pregameGames[game_id] == false, "Can't cancel a PREGAME game");
 
     playingGames[game_id] = false;
     completeGames[game_id] = false;
