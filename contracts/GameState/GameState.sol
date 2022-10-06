@@ -123,4 +123,16 @@ contract GameState {
   function getLookupKey(uint game_id, address addr) private pure returns (uint256) {
     return uint256(keccak256(abi.encode(game_id, addr)));
   }
+
+  function isPregame(uint game_id) public view returns (bool) {
+    return pregameGames[game_id];
+  }
+
+  function isPlaying(uint game_id) public view returns (bool) {
+    return playingGames[game_id];
+  }
+
+  function isComplete(uint game_id) public view returns (bool) {
+    return completeGames[game_id];
+  }
 }

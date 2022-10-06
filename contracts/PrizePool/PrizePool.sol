@@ -33,6 +33,23 @@ contract PrizePool {
     poolStates[pool_id] = PrizePoolState.ACCEPTING_NEW_JOINS;
   } 
 
+  function updateSettings(uint pool_id, PrizePoolSettings calldata settings) public {
+    poolSettings[pool_id] = settings;
+  }
+
+  function getRoyaltySplits(uint pool_id) public view returns (address[] memory, uint[] memory) {
+    PrizePoolSettings memory settings = poolSettings[pool_id];
+    uint length = settings.royaltySplits.length;
+    address[] memory addresses = new address[](length);
+    uint[] memory splits = new uint[](length);
+    for(uint i = 0; i < settings.royaltySplits.length; i++) {
+      addresses[i] = settings.royaltySplits[i].recipient;
+      splits[i] = settings.royaltySplits[i].percentage;
+    }
+
+    return (addresses, splits);
+  }
+
   function addCredits(uint pool_id, uint amount, address caller) public {
     require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingPools[pool_id] == true, "pool_id doesn't exist");
@@ -190,6 +207,11 @@ contract PrizePool {
   function getCreditBalance(uint pool_id, address addr) public view returns(uint) {
     uint256 key = getBalanceKey(pool_id, addr);
     return creditBalances[key];
+  }
+
+  function isJoined(uint pool_id, address addr) public view returns(bool) {
+    uint256 key = getBalanceKey(pool_id, addr);
+    return playerPoolBalanceLookup[key];
   }
 
   function getBuyInPrice(uint pool_id) public view returns(uint) {

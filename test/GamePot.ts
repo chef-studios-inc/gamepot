@@ -27,7 +27,11 @@ describe("GamePot", function () {
 
     const gp0 = await gamePot.connect(users[0]);
 
-    await gp0.createGame(1, currency1.address, utils.parseEther("1"), BigNumber.from(40), BigNumber.from(10));
+    await gp0.createGame(1, currency1.address, utils.parseEther("1"), BigNumber.from(40), BigNumber.from(10), [users[0].address], [100]);
+    const splits = await gp0.getRoyaltySplits(1);
+    expect(splits[1][0].eq(50)).to.be.true;
+    expect(splits[1][1].eq(50)).to.be.true;
+    await gp0.createGame(2, currency1.address, utils.parseEther("1"), BigNumber.from(40), BigNumber.from(10), [users[0].address], [100]);
 
     const price = await gp0.getBuyInPrice(1);
     expect(price.eq(utils.parseEther("1")), "price should be correct").to.be.true;
@@ -39,8 +43,15 @@ describe("GamePot", function () {
       const prizePool = await gamePot.prizePool();
       await cur.approve(prizePool, utils.parseEther("1000000000"));
       await gp.addCredits(1, utils.parseEther("5"));
+      const isJoined = await gp.isJoined(1, players[i].address);
+      expect(isJoined, "shouldn't be joined").to.be.false;
       await gp.joinGame(1);
+      const isJoinedAfter = await gp.isJoined(1, players[i].address);
+      expect(isJoinedAfter, "should be joined").to.be.true;
     }
+
+    const owner = await gp0.getOwner(1);
+    expect(owner).to.eq(users[0].address);
 
     const prizePoolTotal = await gp0.getPrizePoolBalance(1);
     expect(price.mul(players.length).eq(prizePoolTotal), "pool should be correct").to.be.true;

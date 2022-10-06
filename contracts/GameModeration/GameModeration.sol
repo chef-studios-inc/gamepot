@@ -60,6 +60,10 @@ contract GameModeration {
     return gameIdToOwner[game_id] == addr;
   }
 
+  function getOwner(uint game_id) public view returns(address) {
+    return gameIdToOwner[game_id];
+  }
+
   function getModLookupKey(uint game_id, address addr) private pure returns (uint256) {
     return uint256(keccak256(abi.encode(game_id, addr)));
   }

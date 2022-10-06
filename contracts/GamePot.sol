@@ -44,6 +44,10 @@ contract GamePot {
     return prizePool.getCreditBalance(game_id, addr);
   }
 
+  function isJoined(uint game_id, address addr) public view returns (bool) {
+    return prizePool.isJoined(game_id, addr);
+  }
+
   // Prize Pool Methods
 
   function getPrizePoolBalance(uint game_id) public view returns (uint) {
@@ -52,6 +56,10 @@ contract GamePot {
 
   function getBuyInPrice(uint game_id) public view returns (uint) {
     return prizePool.getBuyInPrice(game_id);
+  }
+
+  function getRoyaltySplits(uint game_id) public view returns (address[] memory, uint[] memory) {
+    return prizePool.getRoyaltySplits(game_id);
   }
 
   // Moderation Management Methods
@@ -72,14 +80,35 @@ contract GamePot {
     return gameModeration.isModOrOwner(game_id, addr);
   }
 
-  // Moderation Methods 
-  function createGame(uint game_id, ERC20 currency, uint price, uint percentageOfPlayersPaidOut, uint royaltyPercentOfTotalPrizePool) public {
-    PrizePoolRoyaltySplit memory creatorSplit = PrizePoolRoyaltySplit(msg.sender, 50);
-    PrizePoolRoyaltySplit memory contractSplit = PrizePoolRoyaltySplit(creator, 50);
+  function getOwner(uint game_id) public view returns(address) {
+    return gameModeration.getOwner(game_id);
+  }
 
-    PrizePoolRoyaltySplit[] memory splits = new PrizePoolRoyaltySplit[](2);
+  // Moderation Methods 
+  function createGame(uint game_id, ERC20 currency, uint price, uint percentageOfPlayersPaidOut, uint royaltyPercentOfTotalPrizePool, address[] calldata royaltyRecipients, uint[] calldata royaltyPercentages) public {
+    require(royaltyRecipients.length == royaltyPercentages.length, "Royalty recipients and percentages must be same length");
+
+    uint length = royaltyRecipients.length;
+
+    PrizePoolRoyaltySplit[] memory splits = new PrizePoolRoyaltySplit[](length + 1); // + 1 because the contract always gets paid
+    PrizePoolRoyaltySplit memory contractSplit = PrizePoolRoyaltySplit(creator, 50);
     splits[0] = contractSplit;
-    splits[1] = creatorSplit;
+    
+    uint remaining = 50;
+    for(uint i = 0; i < length; i++) {
+      address recipient = royaltyRecipients[i];
+      uint percentage = royaltyPercentages[i] / 2;
+
+      // if the last one, give them the remaining to ensure we still add to 100
+      if(i == length - 1) {
+        percentage = remaining;
+      } else {
+        remaining -= percentage;
+      }
+
+      PrizePoolRoyaltySplit memory split = PrizePoolRoyaltySplit(recipient, percentage);
+      splits[i + 1] = split;
+    }
 
     PrizePoolSettings memory settings = PrizePoolSettings(splits, price, percentageOfPlayersPaidOut, royaltyPercentOfTotalPrizePool);
 
@@ -109,5 +138,18 @@ contract GamePot {
     require(isModOrOwner(game_id, msg.sender), "must be mod or owner to call this function");
     gameState.cancelGame(game_id);
     prizePool.refundPool(game_id);
+  }
+
+  // gamestate
+  function isPregame(uint game_id) public view returns (bool) {
+    return gameState.isPregame(game_id);
+  }
+
+  function isPlaying(uint game_id) public view returns (bool) {
+    return gameState.isPlaying(game_id);
+  }
+
+  function isComplete(uint game_id) public view returns (bool) {
+    return gameState.completeGames(game_id);
   }
 }
