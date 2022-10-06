@@ -69,7 +69,7 @@ contract GamePot {
   }
 
   function addMod(uint game_id, address mod) public {
-    gameModeration.setOwner(game_id, mod, msg.sender);
+    gameModeration.addMod(game_id, mod, msg.sender);
   }
 
   function removeMod(uint game_id, address mod) public {
