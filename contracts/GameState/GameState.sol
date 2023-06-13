@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 contract GameState {
-  enum GameState { PREGAME, PLAYING, COMPLETE }
+  enum GameStateEnum { PREGAME, PLAYING, COMPLETE }
 
   address private contractCreator;
 
@@ -72,19 +72,19 @@ contract GameState {
     clearGamePlayers(game_id);
   }
 
-  function getGameState(uint game_id) public view returns (GameState) {
+  function getGameState(uint game_id) public view returns (GameStateEnum) {
     require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(existingGames[game_id] == true, "game_id doesn't exist");
 
     if(pregameGames[game_id]) {
-      return GameState.PREGAME;
+      return GameStateEnum.PREGAME;
     }
 
     if(playingGames[game_id]) {
-      return GameState.PLAYING;
+      return GameStateEnum.PLAYING;
     }
 
-    return GameState.COMPLETE;
+    return GameStateEnum.COMPLETE;
   }
 
   function checkIfPlayerInGame(uint game_id, address addr) public view returns (bool) {
