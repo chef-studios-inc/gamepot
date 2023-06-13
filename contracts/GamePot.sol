@@ -3,8 +3,6 @@ pragma solidity ^0.8.9;
 
 // Import this file to use console.log
 import "hardhat/console.sol";
-import "./GameState/GameState.sol";
-import "./GameModeration/GameModeration.sol";
 import "./Credits/Credits.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -15,16 +13,14 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 ///         paid out to the top users with some percentage going to
 ///         the contract's owner
 contract GamePot {
-  GameState public gameState;
-  GameModeration public gameModeration;
   Credits public credits;
   address creator;
+  mapping(address => bool) admins;
+  uint latestGameId = 0;
 
   constructor() {
     creator = msg.sender;
     credits = new Credits();
-    gameState = new GameState();
-    gameModeration = new GameModeration();
   }
 
   // Player Methods
@@ -50,93 +46,31 @@ contract GamePot {
   // }
 
   // Moderation Management Methods
-
-  function setOwner(uint game_id, address newOwner) public {
-    gameModeration.setOwner(game_id, newOwner, msg.sender);
+  function setAdmin(address admin) public {
+    require(msg.sender == creator, "must be creator to call this function");
+    admins[admin] = true;
   }
 
-  function addMod(uint game_id, address mod) public {
-    gameModeration.addMod(game_id, mod, msg.sender);
-  }
-
-  function removeMod(uint game_id, address mod) public {
-    gameModeration.setOwner(game_id, mod, msg.sender);
-  }
-
-  function isModOrOwner(uint game_id, address addr) public view returns (bool) {
-    return gameModeration.isModOrOwner(game_id, addr);
-  }
-
-  function getOwner(uint game_id) public view returns(address) {
-    return gameModeration.getOwner(game_id);
+  function unsetAdmin(address admin) public {
+    require(msg.sender == creator, "must be creator to call this function");
+    admins[admin] = false;
   }
 
   // Moderation Methods 
-  function createGame(uint game_id, ERC20 currency, uint price, uint percentageOfPlayersPaidOut, uint royaltyPercentOfTotalPrizePool, address[] calldata royaltyRecipients, uint[] calldata royaltyPercentages) public {
-    // require(royaltyRecipients.length == royaltyPercentages.length, "Royalty recipients and percentages must be same length");
-
-    // uint length = royaltyRecipients.length;
-
-    // PrizePoolRoyaltySplit[] memory splits = new PrizePoolRoyaltySplit[](length + 1); // + 1 because the contract always gets paid
-    // PrizePoolRoyaltySplit memory contractSplit = PrizePoolRoyaltySplit(creator, 50);
-    // splits[0] = contractSplit;
-    
-    // uint remaining = 50;
-    // for(uint i = 0; i < length; i++) {
-    //   address recipient = royaltyRecipients[i];
-    //   uint percentage = royaltyPercentages[i] / 2;
-
-    //   // if the last one, give them the remaining to ensure we still add to 100
-    //   if(i == length - 1) {
-    //     percentage = remaining;
-    //   } else {
-    //     remaining -= percentage;
-    //   }
-
-    //   PrizePoolRoyaltySplit memory split = PrizePoolRoyaltySplit(recipient, percentage);
-    //   splits[i + 1] = split;
-    // }
-
-    // PrizePoolSettings memory settings = PrizePoolSettings(splits, price, percentageOfPlayersPaidOut, royaltyPercentOfTotalPrizePool);
-
-    // gameState.createGame(game_id);
-    // prizePool.createPool(game_id, currency, settings);
-    // gameModeration.createGame(game_id, msg.sender);
-  }
-
-  function startGame(uint game_id, address[] calldata players) public {
-    require(isModOrOwner(game_id, msg.sender), "must be mod or owner to call this function");
-    gameState.startGame(game_id, players);
-    // prizePool.commitAddressesToPool(game_id, players);
+  function createGame(ERC20 currency, uint[] calldata poolWeights, uint cost, uint boost) public returns(uint) {
+    require(msg.sender == creator || admins[msg.sender], "must be creator or admin to call this function");
+    latestGameId++;
+    credits.startPrizePool(latestGameId, currency, poolWeights, cost, boost);
+    return latestGameId;
   }
 
   function completeGame(uint game_id, address[] calldata leaderboard) public {
-    require(isModOrOwner(game_id, msg.sender), "must be mod or owner to call this function");
-    gameState.completeGame(game_id, leaderboard);
-    // prizePool.awardLeaderboard(game_id, leaderboard);
-  }
-
-  function resetGame(uint game_id) public {
-    require(isModOrOwner(game_id, msg.sender), "must be mod or owner to call this function");
-    gameState.resetGame(game_id);
+    require(msg.sender == creator || admins[msg.sender], "must be creator or admin to call this function");
+    credits.payoutPrizePool(game_id, leaderboard);
   }
 
   function cancelGame(uint game_id) public {
-    require(isModOrOwner(game_id, msg.sender), "must be mod or owner to call this function");
-    gameState.cancelGame(game_id);
-    // prizePool.refundPool(game_id);
-  }
-
-  // Game state 
-  function isPregame(uint game_id) public view returns (bool) {
-    return gameState.isPregame(game_id);
-  }
-
-  function isPlaying(uint game_id) public view returns (bool) {
-    return gameState.isPlaying(game_id);
-  }
-
-  function isComplete(uint game_id) public view returns (bool) {
-    return gameState.completeGames(game_id);
+    require(msg.sender == creator || admins[msg.sender], "must be creator or admin to call this function");
+    credits.refundPool(game_id);
   }
 }

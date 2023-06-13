@@ -73,6 +73,17 @@ contract Credits {
     }
   }
 
+  function withrawCredits(address caller, ERC20 currency) public {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
+    require(canWithdraw, "credit withdraws are disabled, they are only enabled in the event of a total contract failure/upgrade");
+    uint256 key = getAddressCurrencyKey(caller, currency);
+    uint amount = creditBalances[key];
+    creditBalances[key] = 0;
+    if(!currency.transfer(caller, amount)) {
+      creditBalances[key] = amount;
+    }
+  }
+
   function getCreditBalance(address caller, ERC20 currency) public view returns (uint) {
     uint256 key = getAddressCurrencyKey(caller, currency);
     return creditBalances[key];
@@ -87,7 +98,9 @@ contract Credits {
     uint256 key = getAddressCurrencyKey(caller, currency);
     uint amount = winningsBalances[key];
     winningsBalances[key] = 0;
-    currency.transfer(caller, amount);
+    if(!currency.transfer(caller, amount)) {
+      winningsBalances[key] = amount;
+    }
   }
 
   // Prize Pool
@@ -214,6 +227,11 @@ contract Credits {
     require(contractProfits[currency] >= amount, "not enough profits");
     contractProfits[currency] -= amount;
     contractBoostBalance[currency] += amount;
+  }
+
+  function setCanWithdraw(bool cd) public {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
+    canWithdraw = cd;
   }
 
   // Tuple key generation
