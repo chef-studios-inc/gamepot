@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "hardhat/console.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract Credits {
   address private contractCreator;
@@ -14,20 +15,33 @@ contract Credits {
     uint amount;
   }
 
+  struct AddedCredits {
+    address caller;
+    ERC20 currency;
+    uint amount;
+  }
+
+  struct PlayerSignature {
+    uint cost;
+    uint pool_id;
+  }
+
   event PoolPaidOut(PoolPayout[] poolPayouts, ERC20 currency);
+
+  uint256 chain_id;
 
 	mapping (uint256 => uint) poolPaidBalances;
 	mapping (uint256 => uint) creditBalances;
   mapping (uint256 => uint) winningsBalances;
 
-  mapping (uint => ERC20) poolCurrency;
+  mapping (uint256 => ERC20) poolCurrency;
   mapping (uint256 => bool) poolMembers;
   mapping (uint256 => uint[]) poolPayoutWeights;
-  mapping (uint => uint) poolCosts;
-  mapping (uint => uint) poolMemberLastIndex;
+  mapping (uint256 => uint) poolCosts;
+  mapping (uint256 => uint) poolMemberLastIndex;
   mapping (uint256 => address) poolMemberLookup;
   mapping (uint256 => bool) poolRefunded;
-  mapping (uint => uint) poolBoost;
+  mapping (uint256 => uint) poolBoost;
 
   mapping (address => uint) public referralRoyaltySplits; // receiver => percentage
   mapping (address => address) public referralReceivers; // sender => receiver
@@ -37,6 +51,11 @@ contract Credits {
 
   constructor() {
     contractCreator = msg.sender;
+    uint256 id;
+    assembly {
+      id := chainid()
+    }
+    chain_id = id;
   }
 
   // Credit Methods
@@ -94,7 +113,7 @@ contract Credits {
     return winningsBalances[key];
   }
 
-  function takeWinings(address caller, ERC20 currency) public {
+  function takeWinnings(address caller, ERC20 currency) public {
     uint256 key = getAddressCurrencyKey(caller, currency);
     uint amount = winningsBalances[key];
     winningsBalances[key] = 0;
@@ -105,7 +124,7 @@ contract Credits {
 
   // Prize Pool
 
-  function startPrizePool(uint pool_id, ERC20 currency, uint[] calldata payoutWeights, uint cost, uint boost) public {
+  function startPrizePool(uint256 pool_id, ERC20 currency, uint[] calldata payoutWeights, address[] calldata playersWallets, uint cost, uint boost) public {
     require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(address(poolCurrency[pool_id]) == address(0), "pool_id already exists, please choose another");
     require(contractBoostBalance[currency] >= boost, "not enough boost balance");
@@ -115,18 +134,21 @@ contract Credits {
     poolPayoutWeights[pool_id] = payoutWeights;
     poolCosts[pool_id] = cost;
     poolBoost[pool_id] = boost;
+
+    for(uint i = 0; i < playersWallets.length; i++) {
+      joinPrizePool(playersWallets[i], pool_id);
+    }
   } 
 
-  function joinPrizePool(address caller, uint pool_id) public {
-    require(msg.sender == contractCreator, "this contract can only be called by its creator");
-    require(address(poolCurrency[pool_id]) != address(0), "pool_id doesn't exist");
-
+  function joinPrizePool(address caller, uint256 pool_id) private returns (bool) {
     uint256 addressCurrencyKey = getAddressCurrencyKey(caller, poolCurrency[pool_id]);
     uint costs = poolCosts[pool_id];
     uint creditBalance = creditBalances[addressCurrencyKey];
     uint winningBalances = winningsBalances[addressCurrencyKey];
 
-    require(winningBalances + creditBalance >= costs, "not enough credits to join pool");
+    if(winningBalances + creditBalance < costs) {
+      return false;
+    }
 
     if(creditBalance < costs) {
       winningsBalances[addressCurrencyKey] = creditBalance + winningBalances - costs;
@@ -139,9 +161,16 @@ contract Credits {
     poolMembers[getAddressCurrencyPoolIdKey(caller, poolCurrency[pool_id], pool_id)] = true;
     poolMemberLookup[getPoolMemberIndexKey(pool_id, poolMemberLastIndex[pool_id])] = caller;
     poolMemberLastIndex[pool_id]++;
+
+    return true;
   }
 
-  function payoutPrizePool(uint pool_id, address[] calldata leaderboard) public {
+  function isJoined(address caller, uint pool_id) public view returns (bool) {
+    require(msg.sender == contractCreator, "this contract can only be called by its creator");
+    return poolMembers[getAddressCurrencyPoolIdKey(caller, poolCurrency[pool_id], pool_id)];
+  }
+
+  function payoutPrizePool(uint256 pool_id, address[] calldata leaderboard) public {
     require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(address(poolCurrency[pool_id]) != address(0), "pool_id doesn't exist");
 
@@ -177,7 +206,7 @@ contract Credits {
     emit PoolPaidOut(poolPayouts, poolCurrency[pool_id]);
   }
 
-  function refundPool(uint pool_id) public {
+  function refundPool(uint256 pool_id) public {
     require(msg.sender == contractCreator, "this contract can only be called by its creator");
     require(address(poolCurrency[pool_id]) != address(0), "pool_id doesn't exist");
     require(!poolRefunded[pool_id], "pool already refunded");
@@ -202,8 +231,7 @@ contract Credits {
 
   function takeProfits(address caller, ERC20 currency) public {
     require(msg.sender == contractCreator, "this contract can only be called by its creator");
-    uint amount = currency.balanceOf(address(this));
-    currency.transfer(caller, amount);
+    currency.transfer(caller, contractProfits[currency]);
   }
 
   function getProfits(ERC20 currency) public view returns (uint) {
@@ -235,7 +263,7 @@ contract Credits {
   }
 
   // Tuple key generation
-  function getPoolMemberIndexKey(uint pool, uint index) private pure returns (uint256) {
+  function getPoolMemberIndexKey(uint256 pool, uint index) private pure returns (uint256) {
     return uint256(keccak256(abi.encodePacked(pool, index)));
   }
 
@@ -243,11 +271,7 @@ contract Credits {
     return uint256(keccak256(abi.encodePacked(addr, currency)));
   }
 
-  function getAddressCurrencyPoolIdKey(address addr, ERC20 currency, uint pool_id) private pure returns (uint256) {
+  function getAddressCurrencyPoolIdKey(address addr, ERC20 currency, uint256 pool_id) private pure returns (uint256) {
     return uint256(keccak256(abi.encodePacked(addr, currency, pool_id)));
-  }
-
-  function getSenderReceiverKey(uint sender, uint receiver) private pure returns (uint256) {
-    return uint256(keccak256(abi.encodePacked(sender, receiver)));
   }
 }
